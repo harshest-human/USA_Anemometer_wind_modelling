@@ -21,7 +21,7 @@ windmast_input$DateTime <- dmy_hms(windmast_input$DateTime)
 windmast_input$DateTime_WI3min = round_date(windmast_input$DateTime, "3 minutes")
 
 windmast_input <- windmast_input %>% 
-        filter(DateTime_WI3min >= ymd_hms("2021-09-06 11:42:00"),
+        filter(DateTime_WI3min >= ymd_hms("2021-09-02 11:42:00"),
                DateTime_WI3min <= ymd_hms("2021-10-06 11:21:00"))
 
 windmast_input_3min<- windmast_input %>% 
@@ -68,7 +68,7 @@ DWD_input <- read.csv("DWD_20200509_20211109_01803.txt", header=TRUE, sep=";")
 DWD_input <- select(DWD_input, MESS_DATUM, DD_10, FF_10)
 DWD_input$MESS_DATUM <- ymd_hm(DWD_input$MESS_DATUM)
 DWD_input$MESS_DATUM <- as.character(DWD_input$MESS_DATUM)
-DWD_input <- filter(DWD_input, MESS_DATUM >= "2021-09-06 11:20:00", MESS_DATUM <= "2021-10-06 11:20:00")
+DWD_input <- filter(DWD_input, MESS_DATUM >= "2021-10-06 11:20:00", MESS_DATUM <= "2021-11-06 11:21:00")
 DWD_input$MESS_DATUM <- ymd_hms(DWD_input$MESS_DATUM)
 
 ###################### DWD GRAPH ##########################################
