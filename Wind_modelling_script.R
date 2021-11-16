@@ -11,6 +11,7 @@ library(readxl)
 library(readr)
 library(dplyr)
 library(openair)
+library(rvest)
 
 ################# Windmast Import ########################
 windmast_input = read.csv("windmast_06_10.txt", header=FALSE) 
@@ -21,7 +22,7 @@ windmast_input$DateTime <- dmy_hms(windmast_input$DateTime)
 windmast_input$DateTime_WI3min = round_date(windmast_input$DateTime, "3 minutes")
 
 windmast_input <- windmast_input %>% 
-        filter(DateTime_WI3min >= ymd_hms("2021-09-06 11:42:00"),
+        filter(DateTime_WI3min >= ymd_hms("2021-09-02 11:42:00"),
                DateTime_WI3min <= ymd_hms("2021-10-06 11:21:00"))
 
 windmast_input_3min<- windmast_input %>% 
@@ -30,8 +31,10 @@ windmast_input_3min<- windmast_input %>%
 
 ##################### WD/WS ##############################
 UV2WDWS_function <- source("UV2WDWS_function.R")
+
 if (typeof(windmast_input_3min$U) !="double"){
         windmast_input_3min$U=as.numeric(windmast_input_3min$U) }
+
 if (typeof(windmast_input_3min$V) !="double"){
         windmast_input_3min$V=as.numeric(windmast_input_3min$V) }
 
@@ -60,6 +63,19 @@ windRose(WD_WS_table, ws = "ws", wd = "wd",
 wind_WD_WS_data <- cbind.data.frame(windmast_input_3min, WD_WS_table) %>% select(DateTime_WI3min, wd, ws) 
 names(wind_WD_WS_data) = c("DateTime_WI3min", "wind_direction", "wind_speed")
 wind_WD_WS_data$DateTime_WI3min <- as.factor(wind_WD_WS_data$DateTime_WI3min)
+
+url <- 'http://snowfence.umn.edu/Components/winddirectionanddegreeswithouttable3.htm'
+page <- read_html(url)
+directions_raw <- page %>% html_node('td table') %>% html_table(header = TRUE)
+directions <- directions_raw %>% 
+        set_names(~tolower(sub(' Direction', '', .x))) %>% 
+        slice(-1) %>% 
+        separate(degree, c('degree_min', 'degree_max'), sep = '\\s+-\\s+', convert = TRUE)
+
+wind_WD_WS_data <- wind_WD_WS_data  %>% mutate(wd_cardinal = cut(wind_direction, 
+                                                             breaks = c(0, directions$degree_max, 360), 
+                                                             labels = c(directions$cardinal, 'N')))
+
 write.table(wind_WD_WS_data, "wind_WD_WS_data.txt")
 
 
@@ -68,8 +84,9 @@ DWD_input <- read.csv("DWD_20200509_20211109_01803.txt", header=TRUE, sep=";")
 DWD_input <- select(DWD_input, MESS_DATUM, DD_10, FF_10)
 DWD_input$MESS_DATUM <- ymd_hm(DWD_input$MESS_DATUM)
 DWD_input$MESS_DATUM <- as.character(DWD_input$MESS_DATUM)
-DWD_input <- filter(DWD_input, MESS_DATUM >= "2021-09-06 11:20:00", MESS_DATUM <= "2021-10-06 11:20:00")
+DWD_input <- filter(DWD_input, MESS_DATUM >= "2021-10-06 11:20:00", MESS_DATUM <= "2021-11-06 11:21:00")
 DWD_input$MESS_DATUM <- ymd_hms(DWD_input$MESS_DATUM)
+
 
 ###################### DWD GRAPH ##########################################
 windRose(DWD_input, ws = "FF_10", wd = "DD_10",
@@ -104,6 +121,19 @@ DWD_interpolated<- DWD_interpolated %>%
         group_by(MESS_DATUM) %>% 
         summarise(wind_direction = mean(DD_10), wind_speed = mean(FF_10))
 DWD_interpolated$MESS_DATUM <-as.factor(DWD_interpolated$MESS_DATUM)
+
+url <- 'http://snowfence.umn.edu/Components/winddirectionanddegreeswithouttable3.htm'
+page <- read_html(url)
+directions_raw <- page %>% html_node('td table') %>% html_table(header = TRUE)
+directions <- directions_raw %>% 
+        set_names(~tolower(sub(' Direction', '', .x))) %>% 
+        slice(-1) %>% 
+        separate(degree, c('degree_min', 'degree_max'), sep = '\\s+-\\s+', convert = TRUE)
+
+DWD_interpolated <- DWD_interpolated  %>% mutate(wd_cardinal = cut(wind_direction, 
+                                                     breaks = c(0, directions$degree_max, 360), 
+                                                     labels = c(directions$cardinal, 'N')))
+
 write.table(DWD_interpolated, "DWD_interpolated.txt")
 
 
