@@ -1,63 +1,50 @@
-##################### Packages ##########################
-getwd()
-library(tidyverse)
-library(reshape2)
-library(hablar)
-library(lubridate)
-library(psych)
-library(rmarkdown)
-library(ggplot2)
-library(readxl)
+# Load required libraries
 library(readr)
 library(dplyr)
+library(lubridate)
 library(openair)
-library(rvest)
 
-############ Windmast Import ################
-windmast_input = read.csv("D:/Data Analysis/LVAT_Animal_Temperature_data/2025.04.08-2025.06.30_ATB_5_min_wind_speed_and_direction.csv")
+# Read data
+windmast_input <- read_csv("D:/Data Analysis/LVAT_Animal_Temperature_data/2025.04.08-2025.06.30_ATB_5_min_wind_speed_and_direction.csv")
 
-# Convert to datetime
-windmast_input$date <- as.POSIXct(paste(windmast_input$date, windmast_input$time), 
-                                  format = "%d.%m.%Y %H:%M:%S")
-
-# Filter the date range of interest
+# Combine and parse datetime robustly
 windmast_input <- windmast_input %>%
-        filter(date >= as.POSIXct("2025-04-08 00:00:00"),
-               date <= as.POSIXct("2025-06-30 23:59:59"))
+        mutate(
+                datetime_str = paste(date, time),
+                datetime = dmy_hms(datetime_str, tz = "Europe/Berlin"),
+                day = as.Date(datetime),
+                hour = hour(datetime)
+        )
 
-# Add a 'week' factor column (start of week as label)
-windmast_input <- windmast_input %>%
-        mutate(week = paste0("Week ", isoweek(date), ": ", format(floor_date(date, "week", week_start = 1), "%d.%m"), 
-                             " - ", format(floor_date(date, "week", week_start = 1) + days(6), "%d.%m")))
+# Define wind speed breaks, labels, and colors
+speed_breaks <- c(0, 1, 2, 4, 6, 12, Inf)
+speed_labels <- c("0-1", "1-2", "2-4", "4-6", "6-12", ">12")
+speed_colors <- c(
+        "0-1"  = "deepskyblue",
+        "1-2"  = "forestgreen",
+        "2-4"  = "gold",
+        "4-6"  = "darkorange",
+        "6-12" = "red",
+        ">12"  = "brown"
+)
 
-# Optional: Check how many weeks there are
-unique(windmast_input$week)
+# Filter data for one day
+wind_08.04 <- filter(windmast_input, day == as.Date("2025-04-08")) %>%
+        mutate(date = day)   
 
 
-############ Windrose Visualization ################
-# Create weekly wind roses using openair's `type` argument
-windRose(windmast_input,
-         ws = "wind_speed",
-         wd = "wind_direction",
-         type = "week",                # Facet by week
-         breaks = c(0, 1, 2, 4, 6, 12),
-         auto.text = FALSE,
-         paddle = FALSE,
-         grid.line = 5,
-         key = list(labels = c("0 - 1",
-                               "1 - 2",
-                               "2 - 4",
-                               "4 - 6",
-                               "6 - 12")),
-         key.header = "Wind speed (m/s)",
-         key.footer = "08.04.2025 - 30.06.2025",
-         key.position = "bottom",
-         par.settings = list(
-                 axis.text = list(cex = 0.7),      # Axis labels
-                 strip.text = list(cex = 0.7),     # Facet (week) titles
-                 axis.line = list(col = "lightgray"),
-                 layout.heights = list(panel = unit(1.1, "null"), between = 2),  # Add vertical spacing
-                 layout.widths = list(panel = unit(1.1, "null"), between = 2)    # Add horizontal spacing
-         ),
-         col = c("#4f4f4f", "#0a7cb9", "#f9be00", "#ff7f2f", "#d7153a"))
-
+# Plot wind rose for the day
+windRose(
+        wind_08.04,
+        ws = "wind_speed",
+        wd = "wind_direction",
+        angle = 10,
+        breaks = speed_breaks,
+        cols = speed_colors,
+        auto.text = FALSE,
+        paddle = FALSE,
+        key = list(
+                labels = speed_labels,
+                header = "Wind speed (m/s)",
+                footer = format(wind_08.04$date[1], "%d.%m.%Y")),
+        key.position = "bottom")
