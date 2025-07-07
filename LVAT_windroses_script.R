@@ -5,16 +5,12 @@ library(lubridate)
 library(openair)
 
 # Read data
-windmast_input <- read_csv("D:/Data Analysis/LVAT_Animal_Temperature_data/2025.04.08-2025.06.30_ATB_5_min_wind_speed_and_direction.csv")
+windmast_input <- read_csv("D:/Data Analysis/LVAT_Animal_Temperature_data/2025.04.08-2025.06.30_ATB_5_min_wind_speed_and_direction.csv",show_col_types = FALSE)
 
-# Combine and parse datetime robustly
+# Date formatting 
 windmast_input <- windmast_input %>%
-        mutate(
-                datetime_str = paste(date, time),
-                datetime = dmy_hms(datetime_str, tz = "Europe/Berlin"),
-                day = as.Date(datetime),
-                hour = hour(datetime)
-        )
+        mutate(date = as.Date(date, format = "%d.%m.%Y"))
+
 
 # Define wind speed breaks, labels, and colors
 speed_breaks <- c(0, 1, 2, 4, 6, 12, Inf)
@@ -28,23 +24,22 @@ speed_colors <- c(
         ">12"  = "brown"
 )
 
-# Filter data for one day
-wind_08.04 <- filter(windmast_input, day == as.Date("2025-04-08")) %>%
-        mutate(date = day)   
-
-
 # Plot wind rose for the day
 windRose(
-        wind_08.04,
+        windmast_input,
         ws = "wind_speed",
         wd = "wind_direction",
-        angle = 10,
+        angle = 30,
         breaks = speed_breaks,
         cols = speed_colors,
         auto.text = FALSE,
         paddle = FALSE,
         key = list(
                 labels = speed_labels,
-                header = "Wind speed (m/s)",
-                footer = format(wind_08.04$date[1], "%d.%m.%Y")),
-        key.position = "bottom")
+                header = "Wind speed (m/s)"
+        ),
+        key.position = "bottom",
+        type = "date",      # facet by date
+        layout = c(7, 2)    # 3 columns and 3 rows (adjust as needed)
+)
+
