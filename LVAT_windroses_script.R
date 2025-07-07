@@ -49,9 +49,15 @@ windRose(windmast_input,
                                "2 - 4",
                                "4 - 6",
                                "6 - 12")),
-         key.header = "08.04.2025 - 30.06.2025",
-         key.footer = "Wind speed (m/s)",
+         key.header = "Wind speed (m/s)",
+         key.footer = "08.04.2025 - 30.06.2025",
          key.position = "bottom",
-         par.settings = list(axis.line = list(col = "lightgray")),
+         par.settings = list(
+                 axis.text = list(cex = 0.7),      # Axis labels
+                 strip.text = list(cex = 0.7),     # Facet (week) titles
+                 axis.line = list(col = "lightgray"),
+                 layout.heights = list(panel = unit(1.1, "null"), between = 2),  # Add vertical spacing
+                 layout.widths = list(panel = unit(1.1, "null"), between = 2)    # Add horizontal spacing
+         ),
          col = c("#4f4f4f", "#0a7cb9", "#f9be00", "#ff7f2f", "#d7153a"))
 
