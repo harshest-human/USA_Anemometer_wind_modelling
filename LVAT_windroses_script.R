@@ -140,7 +140,7 @@ for (i in seq_along(date_groups)) {
                 )
         print(p)
         
-        fname <- paste0("windrose_", format(min(group_dates), "%Y%m%d"), "_to_", format(max(group_dates), "%Y%m%d"), ".png")
+        fname <- paste0("windrose_USA16_", format(min(group_dates), "%Y%m%d"), "_to_", format(max(group_dates), "%Y%m%d"), ".png")
         ggsave(filename = fname, plot = p, width = 12, height = 8, dpi = 300)
         
         cat("All plots saved as", fname, "in directory:", getwd(), "\n")
