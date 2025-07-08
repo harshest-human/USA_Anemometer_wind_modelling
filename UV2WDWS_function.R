@@ -43,3 +43,7 @@ uv2wdws <- function(u,v) {
         return(cbind(wd, ws))
         
 }
+
+# Example usage
+#USA_Mst_WDWS = data.frame(uv2wdws(USA_Mst_input$u, USA_Mst_input$v))
+
