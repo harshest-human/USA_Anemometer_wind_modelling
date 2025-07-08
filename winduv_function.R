@@ -1,7 +1,7 @@
-
-####### Deveoplment of function ########
-winduv <- function(folder_path, ID, minute_avg = 1, output_file = "averaged_wind_data.csv") {
-        #load libraries
+winduv <- function(folder_path, ID, minute_avg = 1,
+                   start_time = NULL, end_time = NULL,
+                   output_file = "averaged_wind_data.csv") {
+        # Load libraries
         library(dplyr)
         library(lubridate)
         library(stringr)
@@ -13,18 +13,19 @@ winduv <- function(folder_path, ID, minute_avg = 1, output_file = "averaged_wind
         full_data <- data.frame()
         
         for (file in files) {
+                cat("Processing file:", file, "\n")
+                
                 # Read all lines
                 lines <- readLines(file, warn = FALSE)
                 
-                # Keep only data lines starting with 'H,'
+                # Keep only lines starting with 'H,'
                 data_lines <- grep("^H,", lines, value = TRUE)
-                
                 if (length(data_lines) == 0) next
                 
-                # Parse each line
+                # Parse lines
                 parsed <- str_split_fixed(data_lines, ",", 9)
                 
-                # Clean and convert
+                # Convert and clean
                 df <- data.frame(
                         U = as.numeric(parsed[, 2]),
                         V = as.numeric(parsed[, 3]),
@@ -50,6 +51,16 @@ winduv <- function(folder_path, ID, minute_avg = 1, output_file = "averaged_wind
                 return(NULL)
         }
         
+        # Filter by start_time and end_time if provided
+        if (!is.null(start_time)) {
+                start_time <- ymd_hms(start_time)
+                full_data <- filter(full_data, DATE.TIME >= start_time)
+        }
+        if (!is.null(end_time)) {
+                end_time <- ymd_hms(end_time)
+                full_data <- filter(full_data, DATE.TIME <= end_time)
+        }
+        
         # Round to minute intervals
         full_data <- full_data %>%
                 mutate(minute_group = floor_date(DATE.TIME, unit = paste(minute_avg, "min")))
@@ -71,10 +82,14 @@ winduv <- function(folder_path, ID, minute_avg = 1, output_file = "averaged_wind
         return(averaged)
 }
 
-###### Example ########
+
+########## Example #########
 windmast_input <- winduv(
         folder_path = "2025_USA_Traverse_raw",
         ID = "USA.Tr",
         minute_avg = 5,
+        start_time = "2025-04-08 00:00:00",
+        end_time   = "2025-04-14 23:59:59",
         output_file = "2025_04_08_USA_5_min_avg.csv"
 )
+
