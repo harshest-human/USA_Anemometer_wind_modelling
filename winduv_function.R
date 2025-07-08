@@ -84,12 +84,11 @@ winduv <- function(folder_path, ID, minute_avg = 1,
 
 
 ########## Example #########
-windmast_input <- winduv(
-        folder_path = "2025_USA_Traverse_raw",
-        ID = "USA.Tr",
-        minute_avg = 5,
-        start_time = "2025-04-08 00:00:00",
-        end_time   = "2025-04-14 23:59:59",
-        output_file = "2025_04_08_USA_5_min_avg.csv"
-)
+#windmast_input <- winduv(
+        #folder_path = "2025_USA_Traverse_raw",
+        #ID = "USA.Tr",
+        #minute_avg = 5,
+        #start_time = "2025-04-08 00:00:00",
+        #end_time   = "2025-04-14 23:59:59",
+        #output_file = "2025_04_08_USA_5_min_avg.csv")
 
