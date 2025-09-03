@@ -4,15 +4,13 @@ winduvsh <- function(folder_path, ID, start_time = NULL, end_time = NULL, output
         library(lubridate)
         library(stringr)
         
-        # Helper function inside to convert u,v to wd,ws
+        # Helper function: Convert u, v to wind direction and speed
         uv2wdws <- function(u, v) {
                 degrees <- function(radians) 180 * radians / pi
-                
                 mathdegs <- degrees(atan2(v, u))
                 wdcalc <- ifelse(mathdegs > 0, mathdegs, mathdegs + 360)
                 wd <- ifelse(wdcalc < 270, 270 - wdcalc, 270 - wdcalc + 360)
                 ws <- sqrt(u^2 + v^2)
-                
                 return(data.frame(wd = wd, ws = ws))
         }
         
@@ -31,13 +29,13 @@ winduvsh <- function(folder_path, ID, start_time = NULL, end_time = NULL, output
                 
                 lines <- readLines(file, warn = FALSE)
                 
-                # Gill style (assumes format has H, and UVW in specific cols)
+                # Gill-style lines: start with "H,"
                 gill_lines <- grep("^H,", lines, value = TRUE)
+                
                 if (length(gill_lines) > 0) {
                         parsed <- str_split_fixed(gill_lines, ",", 9)
                         u_vals <- as.numeric(parsed[, 2])
                         v_vals <- as.numeric(parsed[, 3])
-                        # Check if W is present: parsed[,4]
                         w_vals <- as.numeric(parsed[, 4])
                         dt_vals <- suppressWarnings(dmy_hms(parsed[, 9]))
                         
@@ -49,13 +47,14 @@ winduvsh <- function(folder_path, ID, start_time = NULL, end_time = NULL, output
                                 stringsAsFactors = FALSE
                         )
                 } else {
-                        # USA style (tab-separated)
+                        # USA-style lines: tab-separated, values usually from column 6 onward
                         usa_lines <- lines[nchar(lines) > 20]
                         parsed <- str_split_fixed(usa_lines, "\t", 10)
                         
-                        u_vals <- as.numeric(str_replace_all(parsed[, 7], ",", "."))
-                        v_vals <- as.numeric(str_replace_all(parsed[, 8], ",", "."))
-                        w_vals <- as.numeric(str_replace_all(parsed[, 9], ",", "."))
+                        # Corrected column positions: assuming 6 = U, 7 = V, 8 = W
+                        u_vals <- as.numeric(str_replace_all(parsed[, 6], ",", "."))
+                        v_vals <- as.numeric(str_replace_all(parsed[, 7], ",", "."))
+                        w_vals <- as.numeric(str_replace_all(parsed[, 8], ",", "."))
                         
                         date_time_str <- paste(parsed[, 2], str_replace(parsed[, 3], ",", "."))
                         dt_vals <- suppressWarnings(dmy_hms(date_time_str))
@@ -81,6 +80,7 @@ winduvsh <- function(folder_path, ID, start_time = NULL, end_time = NULL, output
                 return(NULL)
         }
         
+        # Optional filtering by datetime
         if (!is.null(start_time)) {
                 start_time <- ymd_hms(start_time)
                 end_time   <- ymd_hms(end_time)
@@ -88,10 +88,11 @@ winduvsh <- function(folder_path, ID, start_time = NULL, end_time = NULL, output
                         filter(DATE.TIME >= start_time & DATE.TIME <= end_time)
         }
         
-        # Calculate wd and ws from u, v
+        # Calculate wind direction (wd) and wind speed (ws)
         wdws_df <- uv2wdws(full_data$u, full_data$v)
         full_data <- cbind(full_data, wdws_df)
         
+        # Write to CSV
         write.csv(full_data, output_file, row.names = FALSE)
         message("Output written to: ", output_file)
         
