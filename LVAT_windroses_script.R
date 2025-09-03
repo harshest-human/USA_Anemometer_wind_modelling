@@ -85,14 +85,14 @@ windrose_plot <- ggplot(wind_summary, aes(x = wd_bin, y = freq, fill = ws_cat)) 
                 })
         }) +
         scale_y_continuous(expand = c(0,0)) +
-        theme_minimal(base_size = 14) +
+        theme_minimal(base_size = 16) +
         theme(
                 axis.title = element_blank(),
                 axis.text.y = element_blank(),
-                axis.text.x = element_text(size = 14),
-                strip.text = element_text(size = 14, face = "bold"),
-                legend.title = element_text(size = 14),
-                legend.text = element_text(size = 14),
+                axis.text.x = element_text(size = 16),
+                strip.text = element_text(size = 20, face = "bold"),
+                legend.title = element_text(size = 16),
+                legend.text = element_text(size = 16),
                 legend.position = "bottom",
                 panel.spacing = unit(2, "lines"),
                 plot.margin = margin(t=15,r=15,b=15,l=15)
