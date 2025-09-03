@@ -8,6 +8,7 @@ library(openair)
 library(gridExtra)
 library(grid)
 library(latticeExtra)
+library(purrr)
 source("winduv_function.R") 
 source("UV2WDWS_function.R")
 
@@ -29,41 +30,76 @@ USA_Mst_input <- winduvsh(
 windmast_input <- read_csv("D:/Data Analysis/LVAT_Animal_Temperature_data/2025.04.08-2025.06.30_ATB_5_min_wind_speed_and_direction.csv", show_col_types = FALSE)
 
 
-########## Day wise Windrose plots ########
+########## Parameters ##########
 dates <- c("08.04.2025", "09.04.2025", "10.04.2025",
            "11.04.2025", "12.04.2025", "13.04.2025", "14.04.2025")
 
-plots <- list()
+ws_breaks <- c(0, 1, 2, 4, 6, 12, Inf)
+ws_labels <- c("0-1","1-2","2-4","4-6","6-12",">12")
 
-for (d in dates) {
-        
-        wind_day <- windmast_input %>%
-                mutate(date = as.Date(date, format = "%d.%m.%Y")) %>%
-                filter(date == dmy(d))
-        
-        p <- windRose(wind_day,
-                      ws = "wind_speed",
-                      wd = "wind_direction",
-                      breaks = c(0, 1, 2, 4, 6, 12, Inf),
-                      auto.text = FALSE,
-                      paddle = FALSE,
-                      grid.line = 10,
-                      max.freq = 60,
-                      key = list(labels = c("0 - 1","1 - 2","2 - 4","4 - 6","6 - 12",expression(infinity)),
-                                 header = d,
-                                 footer = "Wind speed (m/s)",
-                                 position = "bottom"),
-                      par.settings = list(axis.line = list(col = "lightgray")),
-                      col = c("#4f4f4f","#0a7cb9","#f9be00","#ff7f2f","#d7153a","#800080"))
-        
-        # Draw rectangle on top of the plot using viewport
-        pushViewport(viewport(x = 0.57, y = 0.55, width = 1, height = 1, angle = 75))
-        grid.rect(x = 0.51, y = 0.59,
-                  width = 0.2, height = 0.12,
-                  gp = gpar(col = "black", fill = NA, alpha = 1, lty = "dotted"))
-        popViewport()
-        
-        # Record **everything together** (plot + rectangle)
-        plots[[d]] <- recordPlot()
-}
+########## Prepare data ##########
+wind_all <- windmast_input %>%
+        mutate(
+                date = dmy(date),
+                day_label = format(date, "%d.%m.%Y"),
+                ws_cat = cut(wind_speed, breaks = ws_breaks, labels = ws_labels, right = FALSE),
+                wd_bin = cut(
+                        wind_direction %% 360,
+                        breaks = seq(0, 360, by = 30),
+                        include.lowest = TRUE,
+                        right = FALSE
+                )
+        ) %>%
+        filter(day_label %in% dates)
+
+wind_summary <- wind_all %>%
+        group_by(day_label, wd_bin, ws_cat) %>%
+        summarise(count = n(), .groups = "drop") %>%
+        group_by(day_label) %>%
+        mutate(freq = count / sum(count)) %>%
+        ungroup()
+
+# Reorder factor levels so 0° bin is first
+wind_summary <- wind_summary %>%
+        mutate(
+                wd_bin = factor(
+                        wd_bin,
+                        levels = levels(cut(0:359, breaks = seq(0,360, by=30), include.lowest = TRUE, right = FALSE))
+                )
+        )
+
+########## Plot ##########
+windrose_plot <- ggplot(wind_summary, aes(x = wd_bin, y = freq, fill = ws_cat)) +
+        geom_col(color = "black", width = 1) +
+        coord_polar(start = -pi/12, clip = "off") +  # rotate first bin to center at top
+        facet_wrap(~day_label, nrow = 1) +
+        scale_fill_manual(
+                values = c("#4f4f4f","#0a7cb9","#f9be00","#ff7f2f","#d7153a","#800080"),
+                name = "Wind speed (m/s)"
+        ) +
+        # Show all degree labels
+        scale_x_discrete(labels = function(x) {
+                sapply(x, function(lbl) {
+                        deg <- sub("^\\[?([0-9]+),.*", "\\1", lbl)
+                        paste0(deg, "°")
+                })
+        }) +
+        scale_y_continuous(expand = c(0,0)) +
+        theme_minimal(base_size = 14) +
+        theme(
+                axis.title = element_blank(),
+                axis.text.y = element_blank(),
+                axis.text.x = element_text(size = 14),
+                strip.text = element_text(size = 14, face = "bold"),
+                legend.title = element_text(size = 14),
+                legend.text = element_text(size = 14),
+                legend.position = "bottom",
+                panel.spacing = unit(2, "lines"),
+                plot.margin = margin(t=15,r=15,b=15,l=15)
+        )
+
+windrose_plot
+
+########## Save ##########
+ggsave("windrose_ggplot.pdf", windrose_plot, width = 20, height = 4)
 
