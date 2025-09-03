@@ -1,156 +1,69 @@
-######### openair windrose ###########
-getwd()
-library(readr)
-library(dplyr)
-library(lubridate)
-library(openair)
-
-# Read data
-windmast_input <- read_csv("D:/Data Analysis/LVAT_Animal_Temperature_data/2025.04.08-2025.06.30_ATB_5_min_wind_speed_and_direction.csv", show_col_types = FALSE)
-
-# Combine and parse datetime robustly
-windmast_input <- windmast_input %>%
-        mutate(date = as.Date(date, format = "%d.%m.%Y"))
-
-# Define wind speed breaks, labels, and colors
-speed_breaks <- c(0, 1, 2, 4, 6, 12, Inf)
-speed_labels <- c("0-1", "1-2", "2-4", "4-6", "6-12", ">12")
-speed_colors <- c(
-        "0-1"  = "deepskyblue",
-        "1-2"  = "forestgreen",
-        "2-4"  = "gold",
-        "4-6"  = "darkorange",
-        "6-12" = "red",
-        ">12"  = "brown"
-)
-
-# Define weekly intervals
-week_starts <- seq(as.Date("2025-04-08"), as.Date("2025-06-30"), by = "1 week")
-week_ends <- week_starts + 6
-
-# Loop over each week to generate wind roses faceted by date
-for (i in seq_along(week_starts)) {
-        week_data <- windmast_input %>%
-                filter(date >= week_starts[i] & date <= week_ends[i])
-        
-        if (nrow(week_data) > 0) {
-                cat("Plotting wind roses for week", i, ":", week_starts[i], "to", week_ends[i], "\n")
-                
-                windRose(
-                        mydata = week_data,
-                        ws = "wind_speed",
-                        wd = "wind_direction",
-                        angle = 30,
-                        breaks = speed_breaks,
-                        cols = speed_colors,
-                        auto.text = FALSE,
-                        paddle = FALSE,
-                        key = list(
-                                labels = speed_labels,
-                                header = "Wind speed (m/s)"
-                        ),
-                        key.position = "bottom",
-                        type = "date",
-                        main = paste("Wind Roses:", week_starts[i], "to", week_ends[i])
-                )
-        }
-}
-
-
-######### ggplot2 windrose ###########
+######### Load libraries ###########
 getwd()
 library(readr)
 library(dplyr)
 library(lubridate)
 library(ggplot2)
+library(openair)
+library(gridExtra)
+library(grid)
+library(latticeExtra)
+source("winduv_function.R") 
+source("UV2WDWS_function.R")
 
-# Read data
+################# Data Import and Cleaning ########################
+USA_Trv_input <- winduvsh(
+        folder_path = "2025_USA_Traverse_raw",
+        ID = "USA.Tr",
+        start_time = "2025-04-08 12:00:00",
+        end_time   = "2025-04-14 23:59:59",
+        output_file = "2025_04_08_USA_Trv_5_min_avg.csv")
+
+USA_Mst_input <- winduvsh(
+        folder_path = "2025_USA_16_MAST_raw",
+        ID = "USA.Mst",
+        start_time = "2025-04-08 00:00:00",
+        end_time   = "2025-04-14 23:59:59",
+        output_file = "2025_04_08_USA_Mst_5_min_avg.csv")
+
 windmast_input <- read_csv("D:/Data Analysis/LVAT_Animal_Temperature_data/2025.04.08-2025.06.30_ATB_5_min_wind_speed_and_direction.csv", show_col_types = FALSE)
 
-# Combine and parse datetime robustly
-windmast_input <- windmast_input %>%
-        mutate(date = as.Date(date, format = "%d.%m.%Y"))
 
-# Function to bin wind direction into 8 sectors
-bin_wind_dir_8 <- function(degrees) {
-        deg_mod <- degrees %% 360
-        breaks <- seq(-22.5, 337.5, by = 45)
-        labels <- c("N", "NE", "E", "SE", "S", "SW", "W", "NW")
-        bins <- cut(deg_mod, breaks = breaks, labels = labels, include.lowest = TRUE, right = FALSE)
-        bins[is.na(bins) & deg_mod >= 337.5] <- "N"
-        return(bins)
+########## Day wise Windrose plots ########
+dates <- c("08.04.2025", "09.04.2025", "10.04.2025",
+           "11.04.2025", "12.04.2025", "13.04.2025", "14.04.2025")
+
+plots <- list()
+
+for (d in dates) {
+        
+        wind_day <- windmast_input %>%
+                mutate(date = as.Date(date, format = "%d.%m.%Y")) %>%
+                filter(date == dmy(d))
+        
+        p <- windRose(wind_day,
+                      ws = "wind_speed",
+                      wd = "wind_direction",
+                      breaks = c(0, 1, 2, 4, 6, 12, Inf),
+                      auto.text = FALSE,
+                      paddle = FALSE,
+                      grid.line = 10,
+                      max.freq = 60,
+                      key = list(labels = c("0 - 1","1 - 2","2 - 4","4 - 6","6 - 12",expression(infinity)),
+                                 header = d,
+                                 footer = "Wind speed (m/s)",
+                                 position = "bottom"),
+                      par.settings = list(axis.line = list(col = "lightgray")),
+                      col = c("#4f4f4f","#0a7cb9","#f9be00","#ff7f2f","#d7153a","#800080"))
+        
+        # Draw rectangle on top of the plot using viewport
+        pushViewport(viewport(x = 0.57, y = 0.55, width = 1, height = 1, angle = 75))
+        grid.rect(x = 0.51, y = 0.59,
+                  width = 0.2, height = 0.12,
+                  gp = gpar(col = "black", fill = NA, alpha = 1, lty = "dotted"))
+        popViewport()
+        
+        # Record **everything together** (plot + rectangle)
+        plots[[d]] <- recordPlot()
 }
-
-# Bin wind speed and wind direction
-windmast_input <- windmast_input %>%
-        mutate(
-                ws_bin = cut(wind_speed,
-                             breaks = c(0, 1, 2, 4, 6, 12, Inf),
-                             right = FALSE,
-                             labels = c("0-1", "1-2", "2-4", "4-6", "6-12", ">12")),
-                wd_bin = bin_wind_dir_8(wind_direction)
-        )
-
-# Prepare data for plotting
-plot_data <- windmast_input %>%
-        count(date, wd_bin, ws_bin) %>%
-        group_by(date) %>%
-        mutate(freq = 100 * n / sum(n)) %>%
-        ungroup()
-
-# Color palette for wind speed bins
-speed_colors <- c(
-        "0-1"  = "deepskyblue",
-        "1-2"  = "forestgreen",
-        "2-4"  = "gold",
-        "4-6"  = "darkorange",
-        "6-12" = "red",
-        ">12"  = "brown"
-)
-
-# Get unique dates and split into groups of 9 (3x3 grid)
-unique_dates <- sort(unique(plot_data$date))
-date_groups <- split(unique_dates, ceiling(seq_along(unique_dates)/6))
-
-# Loop date wise to compile daily plots
-for (i in seq_along(date_groups)) {
-        group_dates <- date_groups[[i]]
-        cat("Plotting dates:", paste(group_dates, collapse = ", "), "\n")
-        flush.console()
-        
-        plot_subset <- plot_data %>% filter(date %in% group_dates)
-        
-        p <- ggplot(plot_subset, aes(x = wd_bin, y = freq, fill = ws_bin)) +
-                geom_col(width = 1, color = "white", size = 0.2) +
-                coord_polar(start = -pi/8) +
-                scale_y_continuous(limits = c(0, 100), breaks = seq(0, 100, 20), labels = NULL) +
-                scale_fill_manual(values = speed_colors, name = "Wind speed (m/s)") +
-                facet_wrap(~date, ncol = 3, nrow = 2) +
-                labs(x = NULL, y = NULL) +
-                theme_minimal(base_size = 14) +
-                theme(
-                        strip.text = element_text(face = "bold", color = "white", size = 14),
-                        strip.background = element_rect(fill = "gray30", color = "black"),
-                        axis.text.y = element_blank(),
-                        axis.text.x = element_text(face = "bold", size = 12),
-                        panel.border = element_rect(color = "gray", fill = NA),
-                        legend.position = "bottom",
-                        legend.title = element_text(face = "bold", size = 14),
-                        legend.text = element_text(size = 12)
-                )
-        print(p)
-        
-        fname <- paste0("windrose_USA16_", format(min(group_dates), "%Y%m%d"), "_to_", format(max(group_dates), "%Y%m%d"), ".png")
-        ggsave(filename = fname, plot = p, width = 12, height = 8, dpi = 300)
-        
-        cat("All plots saved as", fname, "in directory:", getwd(), "\n")
-}
-
-
-
-
-
-
-
-
 
